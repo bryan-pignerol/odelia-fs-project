@@ -2,8 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ActivatedRoute } from '@angular/router';
+import { signal } from '@angular/core';
 
 import { BoardDetailComponent } from './board-detail.component';
+import { AuthService } from '../auth/auth.service';
 
 describe('BoardDetailComponent', () => {
   let http: HttpTestingController;
@@ -14,6 +16,7 @@ describe('BoardDetailComponent', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        { provide: AuthService, useValue: { username: signal('alice') } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: new Map([['id', '7']]) } } }
       ]
     }).compileComponents();
@@ -46,6 +49,65 @@ describe('BoardDetailComponent', () => {
     expect(fixture.componentInstance.board()?.name).toBe('Sprint 1');
     expect(fixture.componentInstance.cardsFor(1).length).toBe(1);
     expect(fixture.componentInstance.members().map(member => member.username)).toEqual(['bob']);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('bob');
+  });
+
+  it('lets the owner add a member and shows the new member', () => {
+    const fixture = TestBed.createComponent(BoardDetailComponent);
+    fixture.detectChanges();
+
+    http.expectOne('/api/boards/7').flush({ id: 7, name: 'Sprint 1', owner: 'alice' });
+    flushMembers();
+    http.expectOne('/api/boards/7/lists').flush([]);
+    fixture.detectChanges();
+
+    const input = fixture.nativeElement.querySelector('#new-member-username') as HTMLInputElement;
+    expect(input).not.toBeNull();
+    fixture.componentInstance.newMemberUsername = ' bob ';
+    fixture.componentInstance.addMember();
+
+    const post = http.expectOne('/api/boards/7/members');
+    expect(post.request.method).toBe('POST');
+    expect(post.request.body).toEqual({ username: 'bob' });
+    post.flush({ id: 4, boardId: 7, username: 'bob' });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.members().map(member => member.username)).toEqual(['bob']);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('bob');
+    expect(fixture.componentInstance.newMemberUsername).toBe('');
+  });
+
+  it('lets the owner remove a member', () => {
+    const fixture = TestBed.createComponent(BoardDetailComponent);
+    fixture.detectChanges();
+
+    http.expectOne('/api/boards/7').flush({ id: 7, name: 'Sprint 1', owner: 'alice' });
+    flushMembers([{ id: 4, boardId: 7, username: 'bob' }]);
+    http.expectOne('/api/boards/7/lists').flush([]);
+    fixture.detectChanges();
+
+    fixture.componentInstance.removeMember(fixture.componentInstance.members()[0]);
+    const remove = http.expectOne('/api/boards/7/members/bob');
+    expect(remove.request.method).toBe('DELETE');
+    remove.flush(null);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.members()).toEqual([]);
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('bob');
+  });
+
+  it('does not show membership controls to a non-owner', () => {
+    const fixture = TestBed.createComponent(BoardDetailComponent);
+    fixture.detectChanges();
+
+    http.expectOne('/api/boards/7').flush({ id: 7, name: 'Sprint 1', owner: 'alice' });
+    flushMembers([{ id: 4, boardId: 7, username: 'bob' }]);
+    http.expectOne('/api/boards/7/lists').flush([]);
+    TestBed.inject(AuthService).username.set('bob');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('#new-member-username')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.remove-member')).toBeNull();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('bob');
   });
 

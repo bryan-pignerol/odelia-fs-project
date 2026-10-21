@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, inject, signal, viewChildren } from '@angular/core';
+import { Component, ElementRef, OnInit, computed, inject, signal, viewChildren } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import {
@@ -12,6 +12,7 @@ import {
 import { forkJoin } from 'rxjs';
 
 import { Board, BoardList, BoardMember, Card } from '../models/board';
+import { AuthService } from '../auth/auth.service';
 import { BoardService } from '../services/board.service';
 
 /**
@@ -40,14 +41,18 @@ import { BoardService } from '../services/board.service';
 export class BoardDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly boardService = inject(BoardService);
+  private readonly auth = inject(AuthService);
 
   readonly board = signal<Board | null>(null);
   readonly columns = signal<BoardList[]>([]);
   readonly members = signal<BoardMember[]>([]);
+  readonly isBoardOwner = computed(() => this.board()?.owner === this.auth.username());
   /** Cards keyed by column id. The arrays are mutated in place by the CDK helpers. */
   readonly cardsByList = signal<Record<number, Card[]>>({});
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+
+  newMemberUsername = '';
 
   /** One "add a card" draft (title + description) per column, keyed by column id. */
   readonly drafts: Record<number, { title: string; description: string }> = {};
@@ -96,6 +101,32 @@ export class BoardDetailComponent implements OnInit {
 
   cardsFor(listId: number): Card[] {
     return this.cardsByList()[listId] ?? [];
+  }
+
+  addMember(): void {
+    const username = this.newMemberUsername.trim();
+    if (!username || !this.isBoardOwner()) {
+      return;
+    }
+    this.error.set(null);
+    this.boardService.addMember(this.boardId, username).subscribe({
+      next: member => {
+        this.members.update(members => [...members, member].sort((a, b) => a.username.localeCompare(b.username)));
+        this.newMemberUsername = '';
+      },
+      error: err => this.fail(`Could not add "${username}" as a member`, err)
+    });
+  }
+
+  removeMember(member: BoardMember): void {
+    if (!this.isBoardOwner()) {
+      return;
+    }
+    this.error.set(null);
+    this.boardService.removeMember(this.boardId, member.username).subscribe({
+      next: () => this.members.update(members => members.filter(m => m.username !== member.username)),
+      error: err => this.fail(`Could not remove "${member.username}"`, err)
+    });
   }
 
   /** The "add a card" draft for a column, created on first access. */

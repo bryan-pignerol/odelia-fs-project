@@ -2,7 +2,9 @@ package com.odelia.kanban.resource;
 
 import com.odelia.kanban.entity.Board;
 import com.odelia.kanban.entity.BoardList;
+import com.odelia.kanban.entity.BoardMember;
 import com.odelia.kanban.repository.BoardListRepository;
+import com.odelia.kanban.repository.BoardMemberRepository;
 import com.odelia.kanban.repository.BoardRepository;
 import com.odelia.kanban.repository.CardRepository;
 import com.odelia.kanban.security.BoardAccess;
@@ -12,6 +14,8 @@ import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -64,6 +68,9 @@ public class BoardResource {
 
     @Inject
     CardRepository cards;
+
+    @Inject
+    BoardMemberRepository members;
 
     @Context
     UriInfo uriInfo;
@@ -147,6 +154,68 @@ public class BoardResource {
                        .build();
     }
 
+    /** Body of {@code POST /api/boards/{id}/members}: the username to invite. */
+    public record AddMemberRequest(@NotBlank @Size(max = 120) String username) {
+    }
+
+    /**
+     * Adds a member to a board. Only the owner (or an admin) may call this.
+     * The owner cannot be added (they already own the board), and a username
+     * that is already a member is rejected with 400 (R2, R5, R10).
+     */
+    @POST
+    @Path("/{id}/members")
+    @Transactional
+    public Response addMember(@PathParam("id") long id, @Valid AddMemberRequest request) {
+        Board board = boards.findById(id).orElseThrow(() -> notFound(id));
+        access.requireOwnerOnly(board);
+
+        String username = request.username();
+        if (username.equals(board.getOwner())) {
+            throw badRequest("The owner is already part of the board");
+        }
+        if (members.existsByBoardIdAndUsername(id, username)) {
+            throw badRequest("User '" + username + "' is already a member of this board");
+        }
+
+        BoardMember member = members.insert(new BoardMember(id, username));
+        return Response.created(uriInfo.getAbsolutePathBuilder().path("members").path(username).build())
+                       .entity(member)
+                       .build();
+    }
+
+    /**
+     * Lists a board's members. Callable by the owner, any existing member,
+     * or an admin (R3).
+     */
+    @GET
+    @Path("/{id}/members")
+    public List<BoardMember> listMembers(@PathParam("id") long id) {
+        Board board = boards.findById(id).orElseThrow(() -> notFound(id));
+        access.requireBoardAccess(board);
+        return members.findByBoardIdOrderByUsernameAsc(id);
+    }
+
+    /**
+     * Removes a member from a board. Only the owner (or an admin) may call this.
+     * The owner cannot be removed (R4, R10). Takes effect immediately: the removed
+     * member's next request is denied.
+     */
+    @DELETE
+    @Path("/{id}/members/{username}")
+    @Transactional
+    public Response removeMember(@PathParam("id") long id, @PathParam("username") String username) {
+        Board board = boards.findById(id).orElseThrow(() -> notFound(id));
+        access.requireOwnerOnly(board);
+
+        if (username.equals(board.getOwner())) {
+            throw badRequest("The owner cannot be removed from the board");
+        }
+
+        members.deleteByBoardIdAndUsername(id, username);
+        return Response.noContent().build();
+    }
+
     /** Loads a board the caller is allowed to work on: 404 if it is gone, 403 if it is not theirs. */
     private Board accessibleBoard(long id) {
         Board board = boards.findById(id).orElseThrow(() -> notFound(id));
@@ -156,5 +225,9 @@ public class BoardResource {
 
     private WebApplicationException notFound(long id) {
         return new WebApplicationException("No board with id " + id, Response.Status.NOT_FOUND);
+    }
+
+    private WebApplicationException badRequest(String message) {
+        return new WebApplicationException(message, Response.Status.BAD_REQUEST);
     }
 }

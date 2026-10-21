@@ -4,6 +4,7 @@ import com.odelia.kanban.entity.Board;
 import jakarta.data.repository.CrudRepository;
 import jakarta.data.repository.Find;
 import jakarta.data.repository.OrderBy;
+import jakarta.data.repository.Query;
 import jakarta.data.repository.Repository;
 
 import java.util.List;
@@ -37,7 +38,7 @@ public interface BoardRepository extends CrudRepository<Board, Long> {
      * are a member of (R6). Query-by-method-name cannot express the OR with a
      * subquery, so the JPQL is written explicitly.
      */
-    @Find("SELECT b FROM Board b WHERE b.owner = ?1 OR b.id IN " +
+    @Query("SELECT b FROM Board b WHERE b.owner = ?1 OR b.id IN " +
            "(SELECT m.boardId FROM BoardMember m WHERE m.username = ?1)")
     @OrderBy("name")
     List<Board> findOwnedOrMember(String username);

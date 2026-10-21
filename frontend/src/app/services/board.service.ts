@@ -47,6 +47,14 @@ export class BoardService {
     return this.http.get<BoardMember[]>(`${this.baseUrl}/${boardId}/members`);
   }
 
+  addMember(boardId: number, username: string): Observable<BoardMember> {
+    return this.http.post<BoardMember>(`${this.baseUrl}/${boardId}/members`, { username });
+  }
+
+  removeMember(boardId: number, username: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${boardId}/members/${encodeURIComponent(username)}`);
+  }
+
   getCards(listId: number): Observable<Card[]> {
     return this.http.get<Card[]>(`${this.listsUrl}/${listId}/cards`);
   }

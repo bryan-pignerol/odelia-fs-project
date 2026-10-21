@@ -12,9 +12,33 @@
     } @else {
       <ul>
         @for (member of members(); track member.id ?? member.username) {
-          <li>{{ member.username }}</li>
+          <li>
+            {{ member.username }}
+            @if (isBoardOwner()) {
+              <button
+                type="button"
+                class="remove-member"
+                [attr.aria-label]="'Remove ' + member.username"
+                (click)="removeMember(member)">Remove</button>
+            }
+          </li>
         }
       </ul>
+    }
+    @if (isBoardOwner()) {
+      <form class="add-member" (ngSubmit)="addMember()">
+        <label for="new-member-username">Add member by username</label>
+        <div class="add-member-controls">
+          <input
+            id="new-member-username"
+            name="newMemberUsername"
+            [(ngModel)]="newMemberUsername"
+            placeholder="Username"
+            autocomplete="off"
+            maxlength="120" />
+          <button type="submit" [disabled]="!newMemberUsername.trim()">Add member</button>
+        </div>
+      </form>
     }
   </section>
 

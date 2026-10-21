@@ -5,6 +5,19 @@
     <h2>{{ b.name }}</h2>
   }
 
+  <section class="members" aria-labelledby="members-heading">
+    <h3 id="members-heading">Members</h3>
+    @if (members().length === 0) {
+      <p class="muted">No members yet.</p>
+    } @else {
+      <ul>
+        @for (member of members(); track member.id ?? member.username) {
+          <li>{{ member.username }}</li>
+        }
+      </ul>
+    }
+  </section>
+
   @if (error()) {
     <p class="error">{{ error() }}</p>
   }

@@ -13,6 +13,32 @@ h2 {
   margin: 0.5rem 0 1.25rem;
 }
 
+.members {
+  margin-bottom: 1.25rem;
+}
+
+.members h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.members ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.members li {
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.9rem;
+}
+
 .columns {
   display: flex;
   gap: 1rem;

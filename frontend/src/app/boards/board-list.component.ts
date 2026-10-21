@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { Board } from '../models/board';
+import { AuthService } from '../auth/auth.service';
 import { BoardService } from '../services/board.service';
 
 /**
@@ -18,12 +19,17 @@ import { BoardService } from '../services/board.service';
 })
 export class BoardListComponent implements OnInit {
   private readonly boardService = inject(BoardService);
+  private readonly auth = inject(AuthService);
 
   readonly boards = signal<Board[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
   newBoardName = '';
+
+  canDeleteBoard(board: Board): boolean {
+    return board.owner === this.auth.username() || this.auth.isAdmin();
+  }
 
   ngOnInit(): void {
     this.reload();

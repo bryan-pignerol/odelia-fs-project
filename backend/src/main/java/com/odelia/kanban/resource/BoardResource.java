@@ -116,7 +116,7 @@ public class BoardResource {
     @Path("/{id}")
     @Transactional
     public Board updateBoard(@PathParam("id") long id, @Valid Board board) {
-        Board existing = accessibleBoard(id);
+        Board existing = ownedBoard(id);
         existing.setName(board.getName());
         return boards.save(existing);
     }
@@ -125,11 +125,12 @@ public class BoardResource {
     @Path("/{id}")
     @Transactional
     public Response deleteBoard(@PathParam("id") long id) {
-        Board existing = accessibleBoard(id);
+        Board existing = ownedBoard(id);
         for (BoardList column : lists.findByBoardIdOrderByPositionAsc(id)) {
             cards.deleteByListId(column.getId());
         }
         lists.deleteByBoardId(id);
+        members.deleteByBoardId(id);
         boards.delete(existing);
         return Response.noContent().build();
     }
@@ -220,6 +221,13 @@ public class BoardResource {
     private Board accessibleBoard(long id) {
         Board board = boards.findById(id).orElseThrow(() -> notFound(id));
         access.requireBoardAccess(board);
+        return board;
+    }
+
+    /** Loads a board the caller owns: 404 if it is gone, 403 for a member or a stranger. */
+    private Board ownedBoard(long id) {
+        Board board = boards.findById(id).orElseThrow(() -> notFound(id));
+        access.requireOwnerOnly(board);
         return board;
     }
 

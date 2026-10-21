@@ -111,6 +111,37 @@ describe('BoardDetailComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('bob');
   });
 
+  it('shows readable errors when adding or removing a member fails', () => {
+    const fixture = TestBed.createComponent(BoardDetailComponent);
+    fixture.detectChanges();
+
+    http.expectOne('/api/boards/7').flush({ id: 7, name: 'Sprint 1', owner: 'alice' });
+    flushMembers([{ id: 4, boardId: 7, username: 'bob' }]);
+    http.expectOne('/api/boards/7/lists').flush([]);
+
+    fixture.componentInstance.newMemberUsername = 'bob';
+    fixture.componentInstance.addMember();
+    http.expectOne('/api/boards/7/members').flush(
+      { error: 'This username is already a member' },
+      { status: 400, statusText: 'Bad Request' }
+    );
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.error()).toBe('This username is already a member');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('This username is already a member');
+
+    fixture.componentInstance.removeMember(fixture.componentInstance.members()[0]);
+    http.expectOne('/api/boards/7/members/bob').flush(
+      { error: 'Only the board owner may manage members' },
+      { status: 403, statusText: 'Forbidden' }
+    );
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.error()).toBe('You are not allowed to manage members on this board.');
+    expect((fixture.nativeElement as HTMLElement).textContent)
+      .toContain('You are not allowed to manage members on this board.');
+  });
+
   it('PATCHes the card when it is dropped into another column', () => {
     const fixture = TestBed.createComponent(BoardDetailComponent);
     const component = fixture.componentInstance;

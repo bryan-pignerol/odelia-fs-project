@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, OnInit, computed, inject, signal, viewChildren } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -114,7 +115,7 @@ export class BoardDetailComponent implements OnInit {
         this.members.update(members => [...members, member].sort((a, b) => a.username.localeCompare(b.username)));
         this.newMemberUsername = '';
       },
-      error: err => this.fail(`Could not add "${username}" as a member`, err)
+      error: err => this.fail(this.memberErrorMessage('add', username, err), err)
     });
   }
 
@@ -125,7 +126,7 @@ export class BoardDetailComponent implements OnInit {
     this.error.set(null);
     this.boardService.removeMember(this.boardId, member.username).subscribe({
       next: () => this.members.update(members => members.filter(m => m.username !== member.username)),
-      error: err => this.fail(`Could not remove "${member.username}"`, err)
+      error: err => this.fail(this.memberErrorMessage('remove', member.username, err), err)
     });
   }
 
@@ -294,6 +295,34 @@ export class BoardDetailComponent implements OnInit {
   /** Re-emit the record so the template re-renders after an in-place mutation. */
   private refresh(): void {
     this.cardsByList.set({ ...this.cardsByList() });
+  }
+
+  private memberErrorMessage(action: 'add' | 'remove', username: string, err: unknown): string {
+    if (err instanceof HttpErrorResponse && err.status === 403) {
+      return 'You are not allowed to manage members on this board.';
+    }
+    if (err instanceof HttpErrorResponse && err.status === 400) {
+      const details = this.memberErrorDetails(err.error);
+      return details ?? (action === 'add'
+        ? `Could not add "${username}". The username may already be a member or the board owner.`
+        : `Could not remove "${username}". The owner cannot be removed from the board.`);
+    }
+    return action === 'add'
+      ? `Could not add "${username}" as a member`
+      : `Could not remove "${username}"`;
+  }
+
+  private memberErrorDetails(body: unknown): string | null {
+    if (typeof body === 'string' && body.trim()) {
+      return body;
+    }
+    if (typeof body === 'object' && body !== null && 'error' in body) {
+      const detail = body.error;
+      if (typeof detail === 'string' && detail.trim()) {
+        return detail;
+      }
+    }
+    return null;
   }
 
   private fail(message: string, err: unknown): void {

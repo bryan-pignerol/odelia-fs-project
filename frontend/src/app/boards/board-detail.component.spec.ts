@@ -22,11 +22,18 @@ describe('BoardDetailComponent', () => {
 
   afterEach(() => http.verify());
 
+  function flushMembers(members: { id: number; boardId: number; username: string }[] = []): void {
+    const request = http.expectOne('/api/boards/7/members');
+    expect(request.request.method).toBe('GET');
+    request.flush(members);
+  }
+
   it('loads the board and its columns on init', () => {
     const fixture = TestBed.createComponent(BoardDetailComponent);
     fixture.detectChanges();
 
     http.expectOne('/api/boards/7').flush({ id: 7, name: 'Sprint 1' });
+    flushMembers([{ id: 3, boardId: 7, username: 'bob' }]);
 
     const listsReq = http.expectOne('/api/boards/7/lists');
     listsReq.flush([{ id: 1, boardId: 7, name: 'To do', position: 0 }]);
@@ -34,9 +41,12 @@ describe('BoardDetailComponent', () => {
     http.expectOne('/api/lists/1/cards').flush([
       { id: 10, listId: 1, title: 'First card', position: 0 }
     ]);
+    fixture.detectChanges();
 
     expect(fixture.componentInstance.board()?.name).toBe('Sprint 1');
     expect(fixture.componentInstance.cardsFor(1).length).toBe(1);
+    expect(fixture.componentInstance.members().map(member => member.username)).toEqual(['bob']);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('bob');
   });
 
   it('PATCHes the card when it is dropped into another column', () => {
@@ -45,6 +55,7 @@ describe('BoardDetailComponent', () => {
     fixture.detectChanges();
 
     http.expectOne('/api/boards/7').flush({ id: 7, name: 'Sprint 1' });
+    flushMembers();
     http.expectOne('/api/boards/7/lists').flush([
       { id: 1, boardId: 7, name: 'To do', position: 0 },
       { id: 2, boardId: 7, name: 'Doing', position: 1 }
@@ -76,6 +87,7 @@ describe('BoardDetailComponent', () => {
     fixture.detectChanges();
 
     http.expectOne('/api/boards/7').flush({ id: 7, name: 'Sprint 1' });
+    flushMembers();
     http.expectOne('/api/boards/7/lists').flush([
       { id: 1, boardId: 7, name: 'To do', position: 0 }
     ]);
@@ -106,6 +118,7 @@ describe('BoardDetailComponent', () => {
     fixture.detectChanges();
 
     http.expectOne('/api/boards/7').flush({ id: 7, name: 'Sprint 1' });
+    flushMembers();
     http.expectOne('/api/boards/7/lists').flush([
       { id: 1, boardId: 7, name: 'To do', position: 0 }
     ]);
@@ -126,6 +139,7 @@ describe('BoardDetailComponent', () => {
     fixture.detectChanges();
 
     http.expectOne('/api/boards/7').flush({ id: 7, name: 'Sprint 1' });
+    flushMembers();
     http.expectOne('/api/boards/7/lists').flush([
       { id: 1, boardId: 7, name: 'To do', position: 0 }
     ]);

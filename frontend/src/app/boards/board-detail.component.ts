@@ -11,7 +11,7 @@ import {
 } from '@angular/cdk/drag-drop';
 import { forkJoin } from 'rxjs';
 
-import { Board, BoardList, Card } from '../models/board';
+import { Board, BoardList, BoardMember, Card } from '../models/board';
 import { BoardService } from '../services/board.service';
 
 /**
@@ -43,6 +43,7 @@ export class BoardDetailComponent implements OnInit {
 
   readonly board = signal<Board | null>(null);
   readonly columns = signal<BoardList[]>([]);
+  readonly members = signal<BoardMember[]>([]);
   /** Cards keyed by column id. The arrays are mutated in place by the CDK helpers. */
   readonly cardsByList = signal<Record<number, Card[]>>({});
   readonly loading = signal(false);
@@ -86,6 +87,10 @@ export class BoardDetailComponent implements OnInit {
         this.loadCards(columns);
       },
       error: err => this.fail('Could not load the columns', err)
+    });
+    this.boardService.getMembers(this.boardId).subscribe({
+      next: members => this.members.set(members),
+      error: err => this.fail('Could not load board members', err)
     });
   }
 

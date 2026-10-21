@@ -31,4 +31,14 @@ public interface BoardRepository extends CrudRepository<Board, Long> {
      * {@code owner} is the {@code preferred_username} taken from the JWT.
      */
     List<Board> findByOwnerOrderByNameAsc(String owner);
+
+    /**
+     * The boards a user can see: the ones they own <em>and</em> the ones they
+     * are a member of (R6). Query-by-method-name cannot express the OR with a
+     * subquery, so the JPQL is written explicitly.
+     */
+    @Find("SELECT b FROM Board b WHERE b.owner = ?1 OR b.id IN " +
+           "(SELECT m.boardId FROM BoardMember m WHERE m.username = ?1)")
+    @OrderBy("name")
+    List<Board> findOwnedOrMember(String username);
 }

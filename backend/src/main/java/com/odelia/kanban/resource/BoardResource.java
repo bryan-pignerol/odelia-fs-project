@@ -75,13 +75,13 @@ public class BoardResource {
     @Context
     UriInfo uriInfo;
 
-    /** The caller's own boards - or every board, for an admin. */
+    /** The caller's own boards and the ones they are a member of - or every board, for an admin. */
     @GET
     @Operation(operationId = "getBoards")
     public List<Board> listBoards() {
         return currentUser.isAdmin()
                 ? boards.findAllSortedByName()
-                : boards.findByOwnerOrderByNameAsc(currentUser.name());
+                : boards.findOwnedOrMember(currentUser.name());
     }
 
     @GET

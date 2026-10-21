@@ -55,6 +55,20 @@ la ligne, le prochain appel du membre retiré passera par `requireBoardAccess` e
 `accessibleBoard()` (avec `requireBoardAccess`) reste utilisée pour `getBoard`,
 `listColumns`, `addColumn` — actions ouvertes aux membres (R7).
 
+### 6. `GET /api/boards` retourne owned + membre — R6
+
+**Fichiers** : `backend/.../repository/BoardRepository.java` (modifié), `backend/.../resource/BoardResource.java` (modifié)
+
+- Nouvelle méthode `findOwnedOrMember(String username)` dans `BoardRepository`,
+  avec une requête JPQL explicite (le query-by-method-name ne peut pas exprimer
+  un OR avec sous-requête) :
+  ```sql
+  SELECT b FROM Board b WHERE b.owner = ?1
+    OR b.id IN (SELECT m.boardId FROM BoardMember m WHERE m.username = ?1)
+  ```
+- `listBoards()` appelle `findOwnedOrMember(currentUser.name())` pour un user
+  non-admin. L'admin continue de voir tous les boards via `findAllSortedByName()`.
+
 ## Edge case considéré
 
 Un membre tente une action owner-only (rename, delete, add/remove member) :
@@ -67,5 +81,6 @@ Un membre tente une action owner-only (rename, delete, add/remove member) :
 |---|---|---|
 | `entity/BoardMember.java` | Créé | R1, R10 |
 | `repository/BoardMemberRepository.java` | Créé | R1, R3, R4, R5, R6 |
+| `repository/BoardRepository.java` | Modifié | R6 |
 | `security/BoardAccess.java` | Modifié | R7, R8, R9 |
-| `resource/BoardResource.java` | Modifié | R2, R3, R4, R5, R8, R10 |
+| `resource/BoardResource.java` | Modifié | R2, R3, R4, R5, R6, R8, R10 |

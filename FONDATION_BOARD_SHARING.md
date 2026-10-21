@@ -42,6 +42,19 @@ La suppression (R4) prend effet immédiatement : `deleteByBoardIdAndUsername` su
 la ligne, le prochain appel du membre retiré passera par `requireBoardAccess` et
 échouera avec 403.
 
+### 5. Owner-only sur rename/delete + nettoyage cascade — R8, R4
+
+**Fichier** : `backend/.../resource/BoardResource.java` (modifié)
+
+- Nouvelle méthode privée `ownedBoard(id)` qui appelle `access.requireOwnerOnly(board)`.
+- `updateBoard()` (PUT rename) passe de `accessibleBoard` à `ownedBoard` → un membre reçoit 403.
+- `deleteBoard()` (DELETE) passe de `accessibleBoard` à `ownedBoard` → un membre reçoit 403.
+- `deleteBoard()` appelle `members.deleteByBoardId(id)` avant de supprimer le board,
+  pour nettoyer les lignes `BOARD_MEMBER` orphelines.
+
+`accessibleBoard()` (avec `requireBoardAccess`) reste utilisée pour `getBoard`,
+`listColumns`, `addColumn` — actions ouvertes aux membres (R7).
+
 ## Edge case considéré
 
 Un membre tente une action owner-only (rename, delete, add/remove member) :
@@ -55,4 +68,4 @@ Un membre tente une action owner-only (rename, delete, add/remove member) :
 | `entity/BoardMember.java` | Créé | R1, R10 |
 | `repository/BoardMemberRepository.java` | Créé | R1, R3, R4, R5, R6 |
 | `security/BoardAccess.java` | Modifié | R7, R8, R9 |
-| `resource/BoardResource.java` | Modifié | R2, R3, R4, R5, R10 |
+| `resource/BoardResource.java` | Modifié | R2, R3, R4, R5, R8, R10 |
